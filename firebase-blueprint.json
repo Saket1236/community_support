@@ -1,0 +1,54 @@
+{
+  "entities": {
+    "PlaceSuggestion": {
+      "title": "Place Suggestion",
+      "description": "A submission for a new place to be added to the app.",
+      "type": "object",
+      "properties": {
+        "place_name": { "type": "string", "description": "The name of the place." },
+        "category": { "type": "string", "enum": ["Temple", "Monument", "Restaurant", "Hotel", "Tourist Attraction", "Other"] },
+        "description": { "type": "string", "description": "A brief description of the place." },
+        "latitude": { "type": "number" },
+        "longitude": { "type": "number" },
+        "city": { "type": "string" },
+        "state": { "type": "string" },
+        "country": { "type": "string" },
+        "image_url": { "type": "string", "format": "uri" },
+        "location_link": { "type": "string", "format": "uri", "description": "Google Maps link for the place." },
+        "created_at": { "type": "string", "format": "date-time" },
+        "status": { "type": "string", "enum": ["pending", "approved", "rejected"] },
+        "submitted_by": { "type": "string", "description": "User ID or email of the submitter." }
+      },
+      "required": ["place_name", "category", "latitude", "longitude", "status"]
+    },
+    "ApprovedPlace": {
+      "title": "Approved Place",
+      "description": "A place that has been reviewed and approved by an admin.",
+      "type": "object",
+      "properties": {
+        "place_name": { "type": "string" },
+        "category": { "type": "string" },
+        "description": { "type": "string" },
+        "latitude": { "type": "number" },
+        "longitude": { "type": "number" },
+        "city": { "type": "string" },
+        "state": { "type": "string" },
+        "country": { "type": "string" },
+        "image_url": { "type": "string" },
+        "approved_at": { "type": "string", "format": "date-time" },
+        "original_suggestion_id": { "type": "string" }
+      },
+      "required": ["place_name", "category", "latitude", "longitude"]
+    }
+  },
+  "firestore": {
+    "/place_suggestions/{suggestionId}": {
+      "schema": "PlaceSuggestion",
+      "description": "Collection of pending and rejected place suggestions."
+    },
+    "/approved_places/{placeId}": {
+      "schema": "ApprovedPlace",
+      "description": "Collection of verified and approved places."
+    }
+  }
+}

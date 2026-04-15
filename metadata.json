@@ -1,0 +1,7 @@
+{
+  "name": "Remix: Trip Sutra (suggestions)",
+  "description": "A professional travel platform for discovering and suggesting hidden local gems, heritage sites, and stays.",
+  "requestFramePermissions": [
+    "geolocation"
+  ]
+}

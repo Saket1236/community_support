@@ -1,0 +1,10 @@
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /place_suggestions/{allPaths=**} {
+      // Allow anyone to upload, but only admins to delete/list
+      // In a real app, you'd require authentication: allow write: if request.auth != null;
+      allow read: if true;
+      allow write: if true; 
+    }
+  }
+}

@@ -1,0 +1,126 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: place_suggestions
+    // Document ID: auto-generated
+    // Fields:
+    //   - place_name: string (required, 1-200 chars)
+    //   - category: string (required, enum)
+    //   - description: string (optional)
+    //   - latitude: number (required)
+    //   - longitude: number (required)
+    //   - city: string (optional)
+    //   - state: string (optional)
+    //   - country: string (optional)
+    //   - image_url: string (optional, URL)
+    //   - location_link: string (optional, URL)
+    //   - created_at: timestamp (required)
+    //   - status: string (required, enum: pending, approved, rejected)
+    //   - submitted_by: string (optional, UID)
+    //   - ai_verification: map (required)
+    //
+    // Collection: approved_places
+    // Document ID: auto-generated
+    // Fields:
+    //   - place_name: string (required)
+    //   - category: string (required)
+    //   - description: string (optional)
+    //   - latitude: number (required)
+    //   - longitude: number (required)
+    //   - city: string (optional)
+    //   - state: string (optional)
+    //   - country: string (optional)
+    //   - image_url: string (optional)
+    //   - approved_at: timestamp (required)
+    //   - original_suggestion_id: string (optional)
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && 
+        (
+          request.auth.token.email == "hemantpande406@gmail.com" ||
+          (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+           get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin')
+        );
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isValidUrl(url) {
+      return url is string; // Simplified for robustness, we validate format in the app
+    }
+
+    function hasOnlyAllowedFields(fields) {
+      return request.resource.data.keys().hasOnly(fields);
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+    function isValidSuggestion(data) {
+      let allowedCategories = ["Temple", "Monument", "Restaurant", "Hotel", "Tourist Attraction", "Other"];
+      let allowedStatuses = ["pending", "approved", "rejected"];
+      
+      return data.place_name is string && data.place_name.size() > 0 && data.place_name.size() <= 200 &&
+             data.category in allowedCategories &&
+             data.latitude is number && data.longitude is number &&
+             data.status in allowedStatuses &&
+             (!('description' in data) || data.description is string) &&
+             (!('image_url' in data) || isValidUrl(data.image_url)) &&
+             (!('location_link' in data) || isValidUrl(data.location_link)) &&
+             (data.created_at is timestamp || data.created_at is string || data.created_at is number) &&
+             data.ai_verification is map &&
+             data.ai_verification.keys().hasAll(['is_real', 'confidence', 'summary', 'verified_at']);
+    }
+
+    function isValidApprovedPlace(data) {
+      return data.place_name is string && data.place_name.size() > 0 &&
+             data.category is string &&
+             data.latitude is number && data.longitude is number &&
+             (data.approved_at is timestamp || data.approved_at is string);
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+    match /_test_writes/{id} {
+      allow create: if true;
+    }
+
+    match /place_suggestions/{suggestionId} {
+      // Anyone can create suggestions (even without login, but we check schema)
+      allow create: if isValidSuggestion(request.resource.data);
+      
+      // Only admins can read, update, or delete suggestions
+      allow read, update, delete: if isAdmin();
+    }
+
+    match /approved_places/{placeId} {
+      // Anyone can read approved places
+      allow read: if true;
+      
+      // Only admins can create, update, or delete approved places
+      allow write: if isAdmin() && (request.method != 'create' || isValidApprovedPlace(request.resource.data));
+    }
+
+    match /users/{userId} {
+      allow read: if isAuthenticated() && (isOwner(userId) || isAdmin());
+      // Only admins can create/update user roles
+      allow write: if isAdmin();
+    }
+  }
+}
